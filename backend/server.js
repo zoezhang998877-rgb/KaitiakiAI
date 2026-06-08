@@ -1,9 +1,4 @@
-/**
- * KaitiakiAI 后端服务
- * 作用：代理外部 API（地理编码、地震、天气），避免浏览器跨域和频率限制
- * 生产环境同时托管前端静态文件（frontend/dist）
- * 启动：node server.js  →  http://localhost:5001
- */
+// 后端：帮前端转发 API，顺便解决跨域。上线后也会把打包好的网页一起发出去
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -17,10 +12,9 @@ const hasFrontend = fs.existsSync(path.join(frontendDist, 'index.html'));
 app.use(cors());
 app.use(express.json());
 
-// Nominatim 要求带 User-Agent
 const NOMINATIM_HEADERS = {
   Accept: 'application/json',
-  'User-Agent': 'KaitiakiAI/1.0 (education project)'
+  'User-Agent': 'KaitiakiAI/1.0 (education project)' // OSM 要求带这个
 };
 
 app.get('/', (req, res) => {
@@ -30,7 +24,7 @@ app.get('/', (req, res) => {
   res.send('KaitiakiAI backend is running');
 });
 
-// 地理编码：地名 → 经纬度
+// 地名 → 经纬度
 app.get('/api/geocode', async (req, res) => {
   try {
     const query = req.query.q;
@@ -54,7 +48,7 @@ app.get('/api/geocode', async (req, res) => {
   }
 });
 
-// 地震数据：转发 GeoNet API
+// 地震 → GeoNet
 app.get('/api/geonet/quakes', async (req, res) => {
   try {
     const response = await fetch('https://api.geonet.org.nz/quake?MMI=3', {
@@ -71,7 +65,7 @@ app.get('/api/geonet/quakes', async (req, res) => {
   }
 });
 
-// 天气数据：转发 Open-Meteo API
+// 天气 → Open-Meteo
 app.get('/api/weather', async (req, res) => {
   try {
     const { lat, lon } = req.query;
@@ -92,19 +86,14 @@ app.get('/api/weather', async (req, res) => {
   }
 });
 
-// 生产环境：托管前端打包文件 + SPA 路由
+// 有 frontend/dist 就把网页也一起提供（部署用）
 if (hasFrontend) {
   app.use(express.static(frontendDist));
   app.get(/^(?!\/api).*/, (req, res) => {
     res.sendFile(path.join(frontendDist, 'index.html'));
   });
-} else {
-  console.warn('frontend/dist not found — API only. Run: cd frontend && npm run build');
 }
 
 app.listen(PORT, () => {
-  console.log(`KaitiakiAI server running on http://localhost:${PORT}`);
-  if (hasFrontend) {
-    console.log('Serving frontend from frontend/dist');
-  }
+  console.log(`Server running on http://localhost:${PORT}`);
 });
