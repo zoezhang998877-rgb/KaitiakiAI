@@ -1,0 +1,12 @@
+# Render Blueprint — connect repo at https://dashboard.render.com
+# New → Blueprint → select this repository
+services:
+  - type: web
+    name: kaitiaki-ai
+    runtime: node
+    plan: free
+    buildCommand: cd frontend && npm install && npm run build && cd ../backend && npm install
+    startCommand: node backend/server.js
+    envVars:
+      - key: NODE_ENV
+        value: production

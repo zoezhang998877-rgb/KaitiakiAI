@@ -1,13 +1,18 @@
 /**
  * KaitiakiAI 后端服务
  * 作用：代理外部 API（地理编码、地震、天气），避免浏览器跨域和频率限制
+ * 生产环境同时托管前端静态文件（frontend/dist）
  * 启动：node server.js  →  http://localhost:5001
  */
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
 
 const app = express();
-const PORT = 5001;
+const PORT = process.env.PORT || 5001;
+const frontendDist = path.join(__dirname, '../frontend/dist');
+const hasFrontend = fs.existsSync(path.join(frontendDist, 'index.html'));
 
 app.use(cors());
 app.use(express.json());
@@ -19,6 +24,9 @@ const NOMINATIM_HEADERS = {
 };
 
 app.get('/', (req, res) => {
+  if (hasFrontend) {
+    return res.sendFile(path.join(frontendDist, 'index.html'));
+  }
   res.send('KaitiakiAI backend is running');
 });
 
@@ -84,6 +92,19 @@ app.get('/api/weather', async (req, res) => {
   }
 });
 
+// 生产环境：托管前端打包文件 + SPA 路由
+if (hasFrontend) {
+  app.use(express.static(frontendDist));
+  app.get(/^(?!\/api).*/, (req, res) => {
+    res.sendFile(path.join(frontendDist, 'index.html'));
+  });
+} else {
+  console.warn('frontend/dist not found — API only. Run: cd frontend && npm run build');
+}
+
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`KaitiakiAI server running on http://localhost:${PORT}`);
+  if (hasFrontend) {
+    console.log('Serving frontend from frontend/dist');
+  }
 });
